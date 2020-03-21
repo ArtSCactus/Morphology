@@ -1,3 +1,7 @@
+import pymorphy2
+from pymorphy2 import MorphAnalyzer
+
+
 class Vocabulary:
     def __init__(self, word_list):
         self.words_list = word_list
@@ -49,12 +53,52 @@ class FileReader:
         return list
 
 
+class TextHandler:
+    def __init__(self):
+        pass
+
+    def get_sentences(self, text):
+        import re
+        sentence_regexp = re.compile('[.!?…]')
+        sentences = sentence_regexp.split(text)
+        return sentences
+
+    def get_words(self, sentence):
+        import re
+        word_regexp = re.compile('\s+')
+        words = word_regexp.split(sentence)
+        for word in words:
+            if word is '':
+                words.remove(word)
+        return words
+
+    def get_words_from_text(self, text):
+        words = []
+        all_sentences = self.get_sentences(text)
+        for sentence in all_sentences:
+            current_sentence_words = self.get_words(sentence)
+            words = words + current_sentence_words
+        return words
+
+
+class LexemeAnalyzer:
+    def __init__(self):
+        pass
+# Returns map word -> analysis of given words
+    def get_analyzed_lexemes(self, words_list):
+        morphology = pymorphy2.MorphAnalyzer()
+        analyzed_lexemes = {}
+        for word in words_list:
+            analyzed_lexemes.update({word:morphology.parse(word)[0]})
+        return analyzed_lexemes
+
+
 if __name__ == '__main__':
-    vocabulary = Vocabulary([])
-    vocabulary.add("word")
-    vocabulary.print_all()
-    vocabulary.delete("word")
-    vocabulary.print_all()
     reader = FileReader('example.txt')
-    print(reader.read())
-    print(reader.read_in_list())
+    text_handler = TextHandler()
+    text = reader.read()
+    words = TextHandler().get_words_from_text(text)
+    morpher = LexemeAnalyzer()
+    lexemes = morpher.get_analyzed_lexemes(words)
+    for word, analysis in lexemes.items():
+        print(word, analysis.tag.cyr_repr)
