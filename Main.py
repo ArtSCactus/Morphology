@@ -173,16 +173,16 @@ class MorphologySystem:
         temp = TextHandler()
         words = temp.get_words_from_text(text)
         self.vocabulary.update(self.__analyze_words(words))
-        self.vocabulary.update_word_endings(self.__get_words_endings(words))
-        list(self.vocabulary.get_word_endings_dict()).sort()
+     #   self.vocabulary.update_word_endings(self.__get_words_endings(words))
+     #   list(self.vocabulary.get_word_endings_dict()).sort()
         list(self.vocabulary.get_dict().items()).sort()
 
     def analyse_manual_text(self, text):
         words = self.text_handler.get_words_from_text(text)
         analysis = self.__analyze_words(words)
         self.vocabulary.update(analysis)
-        self.vocabulary.update_word_endings(self.__get_words_endings(words))
-        list(self.vocabulary.get_word_endings_dict()).sort()
+     #   self.vocabulary.update_word_endings(self.__get_words_endings(words))
+     #   list(self.vocabulary.get_word_endings_dict()).sort()
         list(self.vocabulary.get_dict().items()).sort()
 
     def get_vocabulary(self):
