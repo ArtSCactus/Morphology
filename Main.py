@@ -7,75 +7,83 @@ from pymorphy2 import MorphAnalyzer
 class Vocabulary:
     def __init__(self):
         # contains words and their analysis
-        self.words_map = {}
+        self.__words_map = {}
         # contains words and their endings
-        self.words_endings = {}
+        self.__words_endings = {}
 
-    def update_word_endings(self, dict):
-        self.words_endings.update(dict)
+    def update_word_endings(self, map):
+        self.__words_endings.update(map)
 
     def add_word_ending(self, word, ending):
-        self.words_endings.update(word, ending)
+        if word in self.__words_endings.keys():
+            return
+        self.__words_endings.update(word, ending)
 
     def delete_word_ending(self, word):
-        self.words_endings.pop(word)
+        self.__words_endings.pop(word)
 
     def get_word_ending(self, word):
-        return self.words_endings.get(word)
+        return self.__words_endings.get(word)
 
     def get_word_endings_dict(self):
-        return self.words_endings
+        return self.__words_endings
 
     def print_word_ending(self, word):
-        print(self.words_endings.get(word))
+        print(self.__words_endings.get(word))
 
     def print_all_words_endings(self):
-        if not self.words_endings:
+        if not self.__words_endings:
             print("empty")
         else:
-            for current_word, ending in self.words_endings.items():
+            for current_word, ending in self.__words_endings.items():
                 print(current_word, " -> ", ending)
 
     # adds word and it's analysis to vocabulary
     def add_manual(self, word, morph_analysis):
-        self.words_map.update(word, morph_analysis)
-        self.words_map = collections.OrderedDict(sorted(self.words_map.items()))
+        if word in self.__words_map.keys():
+            return
+        self.__words_map.update(word, morph_analysis)
+        self.__words_map = collections.OrderedDict(sorted(self.__words_map.items()))
 
     # adds all pairs word -> analysis to vocabulary
     def update(self, dict):
-        self.words_map.update(dict)
-        self.words_map = collections.OrderedDict(sorted(self.words_map.items()))
+        self.__words_map.update(dict)
+        self.__words_map = collections.OrderedDict(sorted(self.__words_map.items()))
 
     # removes pair word -> analysis from vocabulary
     def delete(self, word):
-        self.words_map.pop(word)
+        self.__words_map.pop(word)
 
     # prints all pairs word -> analysis to console
     def print_all(self):
-        if not self.words_map:
+        if not self.__words_map:
             print("empty")
         else:
-            for current_word, morph_analysis in self.words_map.items():
-                print(current_word, " -> ", morph_analysis)
+            for current_word, morph_analysis in self.__words_map.items():
+                print(current_word, " -> ", morph_analysis, " ending: ", self.__words_endings.get(current_word))
 
     # prints all pairs word -> analysis to console in cyrillic representation
     def print_all_cyr_repr(self):
-        if not self.words_map:
+        if not self.__words_map:
             print("empty")
         else:
-            for current_word, morph_analysis in self.words_map.items():
-                print(current_word, " -> ", morph_analysis.tag.cyr_repr)
+            for current_word, morph_analysis in self.__words_map.items():
+                print(current_word, " -> ", morph_analysis.tag.cyr_repr, " ending: ",
+                      self.__words_endings.get(current_word))
 
     # prints analysis of the word  from vocabulary
     def print_analysis(self, word):
-        for current_word, morph_analysis in self.words_map.keys():
+        for current_word, morph_analysis in self.__words_map.keys():
             if current_word is word:
-                print(word, " -> ", morph_analysis)
+                print(word, " -> ", morph_analysis, " ending: ", self.__words_endings.get(current_word))
                 break
 
     # returns word analysis dict
     def get_dict(self):
-        return self.words_map
+        return self.__words_map
+
+    def get_word_meta(self, word):
+        return self.__words_map.get(word)
 
 
 class FileReader:
@@ -152,7 +160,6 @@ class MorphologySystem:
         self.vocabulary = Vocabulary()
         self.text_handler = TextHandler()
         self.morphology = MorphAnalyzer()
-        pass
 
     # Returns map of type word -> analysis
     def __analyze_words(self, words_list):
@@ -173,47 +180,93 @@ class MorphologySystem:
         temp = TextHandler()
         words = temp.get_words_from_text(text)
         self.vocabulary.update(self.__analyze_words(words))
-     #   self.vocabulary.update_word_endings(self.__get_words_endings(words))
-     #   list(self.vocabulary.get_word_endings_dict()).sort()
+        self.vocabulary.update_word_endings(self.__get_words_endings(words))
+        list(self.vocabulary.get_word_endings_dict()).sort()
         list(self.vocabulary.get_dict().items()).sort()
 
     def analyse_manual_text(self, text):
         words = self.text_handler.get_words_from_text(text)
         analysis = self.__analyze_words(words)
         self.vocabulary.update(analysis)
-     #   self.vocabulary.update_word_endings(self.__get_words_endings(words))
-     #   list(self.vocabulary.get_word_endings_dict()).sort()
+        self.vocabulary.update_word_endings(self.__get_words_endings(words))
+        list(self.vocabulary.get_word_endings_dict()).sort()
         list(self.vocabulary.get_dict().items()).sort()
 
     def get_vocabulary(self):
         return self.vocabulary
 
     def print_vocabulary(self):
-        self.vocabulary.print_all()
+        self.vocabulary.print_all_cyr_repr()
+
+    # generates a words with ending
+    def generate_word(self, base, ending):
+        word = self.vocabulary.get_word_meta(base)
+        voc_ending = self.vocabulary.get_word_ending(base)
+
+        if word is None:
+            raise NoSuchWordError('No such word in the vocabulary')
+        if voc_ending is None:
+            raise NoSuchWordEndingError('No such word in the vocabulary')
+            print("Normal form", word.normal_form)
+        lexeme = word.lexeme
+        options = []
+        for form in lexeme:
+            form = form.word
+            if ending in form:
+                if form not in options:
+                    options.append(form)
+        return options
 
     # Returns word ending (окончание in russian)
     def get_word_ending(self, word):
+        import re
+        if len(word) is 1 or re.match('([0-9]+|[-&|!?+$#@()^:%])', word):
+            return 'none'
         normal_form = self.morphology.parse(word)[0].normal_form
+        if word == normal_form:
+            return "none"
         words_intersection = ''.join(sorted(set(word) & set(normal_form), key=word.index))
         ending = word.split(words_intersection)
         try:
-            return ending[1]
+            ending = ending[1]
         except IndexError as e:
-            return ending[0]
+            ending = ending[0]
+            # there's no word ending longer than 3 symbols in russian language
+        if len(ending) > 3:
+            return "none"
+        else:
+            return ending
 
-    def get_normal_form(self, word):
-        print(self.morphology.parse(word)[0].normal_form)
 
-    def get_analysis(self, word):
-        return self.vocabulary.get_dict().get(word)
+def get_normal_form(self, word):
+    print(self.morphology.parse(word)[0].normal_form)
 
-    def print_word_endings(self):
-        self.vocabulary.p
+
+def get_analysis(self, word):
+    return self.vocabulary.get_dict().get(word)
+
+
+def print_word_endings(self):
+    self.vocabulary.p
+
+
+class NoSuchWordError(RuntimeError):
+    def __init__(self, message):
+        self.__message = message
+
+    def get_message(self):
+        return self.__message
+
+
+class NoSuchWordEndingError(RuntimeError):
+    def __init__(self, message):
+        self.__message = message
+
+    def get_message(self):
+        return self.__message
 
 
 if __name__ == '__main__':
     system = MorphologySystem()
-    system.analyse_manual_text('машиной')
-    print(system.get_word_ending('машиной'))
-    print(system.get_analysis('машина'))
-    system.vocabulary.print_all_words_endings()
+    system.analyse_text_from_file("example.txt")
+    print(system.generate_word('современный', 'ого'))
